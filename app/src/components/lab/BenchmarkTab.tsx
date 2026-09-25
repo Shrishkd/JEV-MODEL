@@ -244,7 +244,7 @@ export function BenchmarkTab({ health }: { health: Health | null }) {
                     </span>
                   </div>
                   {m.n === 0 ? (
-                    <p className="mt-6 text-sm text-ink-3">No successful calls{m.errors ? `: ${m.errors} failed` : ""}. Check the status bar and Setup tab.</p>
+                    <p className="mt-6 text-sm text-ink-3">No successful calls{m.errors ? `: ${m.errors} failed` : ""}. Check the status bar above.</p>
                   ) : (
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     <Stat label="Exact accuracy" value={hasTruth ? pct(m.acc) : "n/a"} tone={tone} />
@@ -359,6 +359,24 @@ export function BenchmarkTab({ health }: { health: Health | null }) {
           </Card>
         </>
       )}
+
+      <Card>
+        <h3 className="font-semibold">How to read these numbers fairly</h3>
+        <div className="mt-3 grid gap-4 text-sm text-ink-2 md:grid-cols-3">
+          <p>
+            <b className="text-ink">Latency.</b> &ldquo;Browser round trip&rdquo; includes your network and this site&apos;s server. Neither
+            model&apos;s pure compute time is visible here: JEV is a remote API, and BERT runs on Hugging Face&apos;s hosted inference.
+          </p>
+          <p>
+            <b className="text-ink">Accuracy.</b> Both models answer the same 5-class question. BERT learned it from product star ratings.
+            JEV only gets an English description of each class. &ldquo;Within ±1 star&rdquo; forgives confusing neighbouring classes.
+          </p>
+          <p>
+            <b className="text-ink">Calibration.</b> Lower Brier/ECE means the confidence number is more trustworthy for thresholds. 32
+            reviews is a small sample, so upload a few hundred labelled rows before drawing firm conclusions.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 }

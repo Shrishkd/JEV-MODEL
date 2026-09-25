@@ -86,7 +86,7 @@ export function RaceTab({ health }: { health: Health | null }) {
         </div>
         {health?.jev.id === "mock" && (
           <p className="mt-3 text-xs text-warn">
-            JEV is in MOCK mode (no key). Its output is an imitation, so don&apos;t draw conclusions from it. See Setup.
+            JEV is in MOCK mode (no key). Its output is an imitation, so don&apos;t draw conclusions from it.
           </p>
         )}
       </Card>

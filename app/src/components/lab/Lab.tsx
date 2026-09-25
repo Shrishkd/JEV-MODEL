@@ -9,7 +9,6 @@ import { QUOTA_EVENT } from "@/lib/lab/client";
 import { RaceTab } from "./RaceTab";
 import { BenchmarkTab } from "./BenchmarkTab";
 import { AspectsTab } from "./AspectsTab";
-import { SetupTab } from "./SetupTab";
 
 export type Health = {
   jev: { id: "typesafe" | "vercel" | "mock"; model: string; configured: boolean };
@@ -17,7 +16,7 @@ export type Health = {
   quota: { unlimited: true } | { unlimited: false; limit: number; remaining: number; maxCallsPerTry: number; storeMissing?: boolean } | null;
 };
 
-type Tab = "race" | "bench" | "aspects" | "setup";
+type Tab = "race" | "bench" | "aspects";
 
 export function Lab() {
   const [tab, setTab] = useState<Tab>("race");
@@ -69,7 +68,7 @@ export function Lab() {
           </p>
         </div>
 
-        <StatusBar health={health} onRefresh={refresh} onSetup={() => setTab("setup")} />
+        <StatusBar health={health} onRefresh={refresh} />
 
         <div className="mt-8">
           <Tabs
@@ -79,14 +78,12 @@ export function Lab() {
               { id: "race", label: "⚡ Head-to-head" },
               { id: "bench", label: "📊 Benchmark" },
               { id: "aspects", label: "🧩 Beyond BERT: aspects" },
-              { id: "setup", label: "⚙️ Setup" },
             ]}
           />
           <div className="mt-6">
             {tab === "race" && <RaceTab health={health} />}
             {tab === "bench" && <BenchmarkTab health={health} />}
             {tab === "aspects" && <AspectsTab health={health} />}
-            {tab === "setup" && <SetupTab health={health} onRefresh={refresh} />}
           </div>
         </div>
       </main>
@@ -94,7 +91,7 @@ export function Lab() {
   );
 }
 
-function StatusBar({ health, onRefresh, onSetup }: { health: Health | null; onRefresh: () => void; onSetup: () => void }) {
+function StatusBar({ health, onRefresh }: { health: Health | null; onRefresh: () => void }) {
   const jev = health?.jev;
   const bert = health?.bert;
   return (
@@ -121,11 +118,6 @@ function StatusBar({ health, onRefresh, onSetup }: { health: Health | null; onRe
       <button onClick={onRefresh} className="ml-auto text-xs text-ink-3 hover:text-ink">
         ↻ recheck
       </button>
-      {(health?.jev.id === "mock" || !health?.bert.ok) && (
-        <button onClick={onSetup} className="text-xs text-jev-soft hover:underline">
-          how to fix →
-        </button>
-      )}
     </div>
   );
 }
@@ -134,12 +126,12 @@ function StatusBar({ health, onRefresh, onSetup }: { health: Health | null; onRe
 export function jevHint(message: string, code?: string) {
   if (code === "quota_exhausted") return "Each visitor gets a few JEV tries per day to keep the demo's API bill tiny. BERT still works without limits.";
   if (code === "run_cap") return "One try covers a limited number of reviews. Run a smaller CSV or start a new try.";
-  if (code === "store_missing") return "The site owner needs to add Upstash Redis in Vercel (Storage tab) and redeploy.";
+  if (code === "store_missing") return "JEV is paused on this deployment. BERT still works.";
   if (code === "global_cap") return "The whole demo hit its daily JEV budget. It resets at midnight UTC.";
   if (code === "customer_verification_required" || /credit card/i.test(message))
     return "Vercel AI Gateway needs a card on file before it serves requests (it also unlocks free credits). Add one at vercel.com → AI Gateway, then retry.";
-  if (code === "missing_key") return "No API key configured. Add AI_GATEWAY_API_KEY or TYPESAFE_API_KEY to .env.local and restart `npm run dev`.";
-  if (/401|unauthori[sz]ed|invalid.*key/i.test(message)) return "The API key was rejected. Check it in .env.local.";
+  if (code === "missing_key") return "JEV isn't configured on this deployment yet. BERT still works.";
+  if (/401|unauthori[sz]ed|invalid.*key/i.test(message)) return "JEV rejected this site's API key. BERT still works.";
   if (/429|rate/i.test(message)) return "Rate-limited. Wait a moment, or lower concurrency in the benchmark.";
   return null;
 }
