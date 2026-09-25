@@ -24,7 +24,11 @@ export async function GET(req: Request) {
   }
 
   const q = await peekQuota(req).catch(() => null);
-  const quota = q && (q.unlimited ? { unlimited: true } : { unlimited: false, limit: q.limit, remaining: q.remaining, maxCallsPerTry: q.maxCallsPerTry });
+  const quota =
+    q &&
+    (q.unlimited
+      ? { unlimited: true }
+      : { unlimited: false, limit: q.limit, remaining: q.storeMissing ? 0 : q.remaining, maxCallsPerTry: q.maxCallsPerTry, storeMissing: q.storeMissing });
 
   return Response.json({ jev, bert, quota: jev.id === "mock" ? { unlimited: true } : quota });
 }

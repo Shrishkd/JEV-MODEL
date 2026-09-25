@@ -1,12 +1,10 @@
 import { LABELS, MAX_TEXT, type BertSentimentResponse, type Label } from "@/lib/lab/shared";
 import { bertBackend, BERT_MODEL_ID } from "@/lib/bert";
-import { rateLimit, tooMany } from "@/lib/rateLimit";
+import { consumeBertCall } from "@/lib/quota";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  if (!rateLimit(req, 600)) return tooMany();
-
   const body = (await req.json().catch(() => ({}))) as { text?: unknown };
   const text = typeof body.text === "string" ? body.text.trim() : "";
   if (!text) return Response.json({ error: "text is required" }, { status: 400 });
@@ -18,6 +16,13 @@ export async function POST(req: Request) {
       { error: "BERT isn't configured. Set BERT_SERVICE_URL (local bert-service) or HF_TOKEN (Hugging Face Inference API)." },
       { status: 503 },
     );
+
+  // Hosted BERT spends Hugging Face credits, so it gets a daily quota. The local service doesn't.
+  if (backend.kind === "hf") {
+    const verdict = await consumeBertCall(req).catch(() => null);
+    if (!verdict) return Response.json({ error: "Usage limits are temporarily unavailable, so BERT is paused.", code: "store_error" }, { status: 503 });
+    if (!verdict.ok) return Response.json({ error: verdict.message, code: verdict.code }, { status: verdict.httpStatus });
+  }
 
   const t0 = performance.now();
   try {

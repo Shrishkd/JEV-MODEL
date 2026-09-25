@@ -79,7 +79,7 @@ export function BenchmarkTab({ health }: { health: Health | null }) {
           row.jev = { error: (j.reason as Error).message };
           const r = j.reason as LabError;
           if (useJev && r.status !== 0) setFirstError((e) => e ?? { msg: r.message, code: r.code });
-          if ([400, 401, 402, 403, 429, 500].includes(r.status)) jevFatal = true;
+          if ([400, 401, 402, 403, 429, 500, 503].includes(r.status)) jevFatal = true;
         }
         setRows((rs) => rs.map((x, k) => (k === i ? row : x)));
         setProgress(++done);

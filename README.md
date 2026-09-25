@@ -33,18 +33,23 @@ cd blog && npm install && npm run dev        # http://localhost:3000
 cd app  && npm install && npm run dev        # http://localhost:3001   (cp .env.example .env.local)
 ```
 
-## JEV quota (protects your card)
+## Rate limiting: one strategy, enforced on the server
+
+Daily quotas are stored in **Upstash Redis** and keyed by the visitor's IP (Vercel's `x-real-ip`), with a site-wide daily
+ceiling on top. There's no other limiter.
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `JEV_TRIES_PER_DAY` | `3` | Tries per visitor (IP) per UTC day. One try = one race, aspects run, or whole benchmark run. `0` = unlimited. |
-| `JEV_MAX_CALLS_PER_TRY` | `40` | JEV calls allowed inside one try (a benchmark covers up to 40 reviews). |
-| `JEV_GLOBAL_DAILY_CALLS` | `500` | Hard daily cap across all visitors. |
-| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | *(unset)* | Optional. Makes the counts hold across Vercel's serverless instances. |
+| `JEV_TRIES_PER_DAY` | `3` | Tries per visitor per UTC day. One try = one race, aspects run, or whole benchmark run. `0` = unlimited. |
+| `JEV_MAX_CALLS_PER_TRY` | `40` | JEV calls inside one try (a benchmark covers up to 40 reviews). |
+| `JEV_GLOBAL_DAILY_CALLS` | `500` | Site-wide JEV ceiling: the number that bounds your bill (~₹1/day). |
+| `BERT_CALLS_PER_DAY` | `200` | Hosted BERT (HF credits) per visitor. The local `bert-service` is never limited. |
+| `BERT_GLOBAL_DAILY_CALLS` | `2000` | Site-wide hosted-BERT ceiling. |
 
-BERT is never limited, and the mock provider never counts. Without Redis, counts live in memory. That's exact locally but
-best-effort on Vercel, where each instance keeps its own counts. The global cap and a spend limit on your Vercel account
-still bound the cost. Worst case with the defaults is about 500 calls/day × ~$0.00002 ≈ **₹1/day**.
+- If JEV fails on a try's first call (outage, bad key), the try is **refunded**.
+- **Fails closed:** on Vercel without Redis, JEV and hosted BERT return `503 store_missing` instead of running unlimited.
+  Locally, counts live in memory and no Redis is needed.
+- The mock provider and the local BERT service are free, so they're never counted.
 
 ## Deploying (everything free except JEV usage)
 
@@ -61,12 +66,12 @@ Render's 512 MB Free/Starter plans run out of memory. Then set `BERT_SERVICE_URL
 1. vercel.com → **Add New → Project** → import the GitHub repo → **Root Directory: `app`**.
 2. Environment variables:
    - `AI_GATEWAY_API_KEY` = `vck_…`
-   - `HF_TOKEN` = `hf_…` (do **not** set `BERT_SERVICE_URL`)
-   - `JEV_TRIES_PER_DAY=3`, `JEV_MAX_CALLS_PER_TRY=40`, `JEV_GLOBAL_DAILY_CALLS=500`
-3. **Deploy**, then open `/compare`. The status bar should show *JEV · Vercel AI Gateway*, *BERT · online (Hugging Face
-   Inference API)* and *JEV tries left today: 3/3*.
-4. Optional: **Storage → Upstash for Redis** (Marketplace, free). It adds `KV_REST_API_URL` / `KV_REST_API_TOKEN`, which the
-   quota picks up automatically. Redeploy.
+   - `HF_TOKEN` = `hf_…`. Do **not** set `BERT_SERVICE_URL` (a `localhost` value is ignored on Vercel anyway).
+   - Optional overrides of the limits above (the defaults are sensible).
+3. **Required: Storage → Upstash for Redis → Create (free plan) → connect to this project.** It adds
+   `KV_REST_API_URL` / `KV_REST_API_TOKEN`, which the quota picks up automatically. Without it, JEV and BERT refuse calls.
+4. **Deploy** (or Redeploy), then open `/compare`. The status bar should show *JEV · Vercel AI Gateway*,
+   *BERT · online (Hugging Face Inference API)* and *JEV tries left today: 3/3*.
 
 ### 3. Blog → Vercel project #1
 1. **Add New → Project** → import the **same** repo → **Root Directory: `blog`**.
