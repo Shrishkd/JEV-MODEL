@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Card, Reveal, Section, cn } from "@/components/ui";
+import { COMPARE_URL } from "@/lib/links";
 
 const VIDEO_ID = "0zFfcEr1e9U";
 
@@ -28,8 +28,6 @@ const CHAPTERS: [number, string][] = [
 ];
 
 const CORRECTIONS = [
-  ["“Jeff” in the auto-captions is JEV", "The transcript spells it Jeff / JEV / GEV. It's JEV by TypeSafe AI."],
-  ["RLCD, not RLCV", "Reinforcement Learning for Calibrated Decisions. Its details are unpublished."],
   ["Model size: unknown", "The video suggests both “30–70B-class” and “under a billion parameters”. Neither is confirmed."],
   ["Costs are in rupees", "The video's “Rs.119 / Rs.956 per million” is GPT-5's $1.25 / $10 at ≈₹95/$. JEV's “Rs.4” is $0.042."],
   ["“Can't hallucinate” ≠ “can't be wrong”", "It can't output an invalid option, but it can still choose the wrong one. That's why the confidence score matters."],
@@ -134,7 +132,7 @@ export function VideoNotes() {
       </Reveal>
 
       <Reveal>
-        <Link href="/lab" className="group mt-6 block">
+        <a href={COMPARE_URL} className="group mt-6 block">
           <div className="relative overflow-hidden rounded-2xl border border-jev/40 bg-gradient-to-br from-jev/15 via-surface to-surface p-6 transition-colors group-hover:border-jev sm:p-8">
             <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-cyan/10 blur-3xl" />
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-jev-soft">Hands-on · real APIs</p>
@@ -145,7 +143,7 @@ export function VideoNotes() {
               cost side by side. It also shows what BERT can&apos;t do: aspect ratings with zero retraining.
             </p>
           </div>
-        </Link>
+        </a>
       </Reveal>
     </Section>
   );

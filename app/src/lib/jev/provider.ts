@@ -66,8 +66,11 @@ export async function systemOne(state: string, questions: JevQuestions, signal?:
   }
 
   const ep = ENDPOINTS[provider.id];
-  const key = process.env[ep.keyVar];
+  const key = process.env[ep.keyVar]?.trim();
   if (!key) throw new JevError(`${ep.keyVar} is not set`, 500, "missing_key");
+  // Never send a Vercel credential to TypeSafe (or anything else to the wrong provider).
+  if (provider.id === "typesafe" && /^vc[kp]_/.test(key))
+    throw new JevError("TYPESAFE_API_KEY contains a Vercel key. Put vck_… in AI_GATEWAY_API_KEY and never use vcp_ tokens here.", 500, "missing_key");
 
   const res = await fetch(ep.url, {
     method: "POST",

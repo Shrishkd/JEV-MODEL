@@ -1,62 +1,104 @@
-# JEV Explained + BERT vs JEV Lab
+# JEV: explainer blog + sentiment app
 
-An interactive, dark-mode guide to **JEV by TypeSafe AI**, a System-1 decision model. It comes with a hands-on lab that compares it with the BERT model from **Moodify**.
+One repo, three deployable parts:
 
-| Route  | What it is | Calls real APIs? |
-|--------|------------|------------------|
-| `/`    | The explainer: what JEV is, System 1 vs 2, origin, API, JEV vs LLM (speed race, ₹/$ cost calculator, format-drift demo), calibration & RLCD, speculative architecture, the Flipkart-style aspect demo from the video, use-case gallery, limitations, evidence, video notes and a quiz | **No.** Every demo is a local simulation (`src/lib/sim/pseudoJev.ts`) and is labelled "simulated". |
-| `/lab` | Moodify 2.0: head-to-head race, labelled benchmark (accuracy, ±1-star accuracy, p50/p95 latency, Brier/ECE calibration, cost, per-category accuracy, CSV upload/export) and per-aspect analysis that BERT can't do | **Yes.** It uses the JEV API and the local BERT service. |
-
-## Run it
-
-```bash
-npm install
-cp .env.example .env.local        # add your key(s), see below
-npm run dev                       # http://localhost:3000
-
-# BERT side of the lab (second terminal)
-cd bert-service
-pip install -r requirements.txt
-uvicorn main:app --port 8000
+```
+JEV/
+├── blog/            Next.js · the JEV explainer (static, simulated demos, no keys)   → Vercel project #1
+├── app/             Next.js · Moodify 2.0: JEV sentiment app + BERT vs JEV compare   → Vercel project #2
+├── bert-service/    FastAPI · Moodify's BERT model behind an HTTP API                → Hugging Face Spaces (or Render)
+├── render.yaml      Render blueprint for bert-service (paid 2 GB plan)
+└── README.md
 ```
 
-## JEV provider: switching needs no code change
+## How the parts talk to each other
 
-`src/lib/jev/provider.ts` speaks TypeSafe's native `/v1/systemone` format to all backends:
+```
+        Browser
+   ┌───────┴─────────────┐
+   ▼                     ▼
+ blog  ──link──▶  app  /compare ─────────────── (browser only talks to app's own /api/*)
+ (static)          │
+                   ├─ /api/jev    ──▶  JEV  (Vercel AI Gateway today, TypeSafe direct later)
+                   ├─ /api/bert   ──▶  bert-service  /predict   (BERT_SERVICE_URL)
+                   └─ /api/health ──▶  checks both
+```
 
-| Provider | Env var | Endpoint | Model |
+- **blog** has no server code and no secrets. Its "BERT vs JEV Lab" links go to `NEXT_PUBLIC_APP_URL/compare`.
+- **app** keeps every key server-side. The browser only calls the app's own `/api/*` routes, and those call JEV and BERT.
+  `/` currently redirects to `/compare`. It will become the JEV sentiment analyser.
+- **bert-service** has no keys. The app reaches it over HTTPS through `BERT_SERVICE_URL`.
+
+Shared UI files (`ui.tsx`, `currency.tsx`, `pseudoJev.ts`, `globals.css`) are copied into both Next apps on purpose. That keeps
+each Vercel project self-contained (Root Directory = its folder), with no workspace tooling to configure.
+
+## Run locally (three terminals)
+
+```bash
+cd bert-service && pip install -r requirements.txt && uvicorn main:app --port 8000
+cd blog && npm install && npm run dev        # http://localhost:3000
+cd app  && npm install && npm run dev        # http://localhost:3001  (copy .env.example → .env.local first)
+```
+
+## Environment variables
+
+| Project | Variable | Local value | Production value |
 |---|---|---|---|
-| Vercel AI Gateway | `AI_GATEWAY_API_KEY` | `https://ai-gateway.vercel.sh/typesafe/v1/systemone` | `typesafe-ai/jev` |
-| TypeSafe direct | `TYPESAFE_API_KEY` | `https://api.typesafe.ai/v1/systemone` | `jev-latest` |
-| Mock (no key) | none | local imitation, clearly flagged in the UI | `pseudo-jev (mock)` |
+| blog | `NEXT_PUBLIC_APP_URL` | `http://localhost:3001` | `https://<your-app>.vercel.app` |
+| app | `AI_GATEWAY_API_KEY` | `vck_…` | same (Vercel → Settings → Environment Variables) |
+| app | `TYPESAFE_API_KEY` | *(empty until you get one)* | TypeSafe key. It wins automatically. |
+| app | `BERT_SERVICE_URL` | `http://127.0.0.1:8000` | `https://<user>-moodify-bert.hf.space` |
+| app | `NEXT_PUBLIC_BLOG_URL` | `http://localhost:3000` | `https://<your-blog>.vercel.app` |
+| app | `LAB_RATE_LIMIT_PER_MIN` | `300` | `60` for a public demo |
 
-With `JEV_PROVIDER=auto` (the default), the TypeSafe key wins if it's set, then the Vercel key, then mock. **When you get a TypeSafe key, paste it into `TYPESAFE_API_KEY` and restart.** Nothing else changes.
-
-> Vercel AI Gateway returns `customer_verification_required` (403) until a credit card is on the Vercel account. Adding one also unlocks free credits. The lab shows this hint inline.
-
-## BERT service
-
-`bert-service/main.py` is a FastAPI wrapper around the same model Moodify uses (`nlptown/bert-base-multilingual-uncased-sentiment`, 5 classes). It adds per-request `tokenize_ms` / `inference_ms` timings. Set `BERT_MODEL_PATH` to load Moodify's local copy (`../Moodify-WebApp/Backend/model`) instead of the Hugging Face cache.
+Only `vck_…` (AI Gateway key) goes in `AI_GATEWAY_API_KEY`. A `vcp_…` Vercel *account* token must never go in any env var of
+this app.
 
 ## Deploying
 
-- The Next.js app deploys to Vercel as-is. Set the env vars in the project settings, not in code.
-- The BERT service (about 670 MB of weights plus torch) doesn't fit on Vercel functions. Host it on Hugging Face Spaces, Render or Railway, and point `BERT_SERVICE_URL` at it.
-- `/api/jev` has a per-IP rate limit (`LAB_RATE_LIMIT_PER_MIN`). Keep it if the lab is public, or add auth.
+The steps are in the order they depend on each other: BERT first, then the app, then the blog.
 
-## Project layout
+### 1. BERT service → Hugging Face Spaces (free, 16 GB RAM)
+1. huggingface.co → **New Space** → name `moodify-bert`, SDK **Docker** → *Blank*, hardware **CPU basic (free)**.
+2. **Files → Add file → Upload files**: upload `Dockerfile`, `README.md`, `main.py`, `requirements.txt` from `bert-service/`, then commit.
+3. Wait for the build (~5–10 min: installs CPU torch and bakes the model into the image). Status turns **Running**.
+4. Test it: `https://<user>-moodify-bert.hf.space/health` returns `"ok": true`.
+5. Note: free Spaces sleep after ~48 h idle, and the first request after that takes a minute to wake it.
 
-```
-src/app/page.tsx              blog (static)
-src/app/lab/page.tsx          lab
-src/app/api/{jev,bert,health} server routes (keys never reach the browser)
-src/components/blog/*         one file per blog section
-src/components/lab/*          lab tabs
-src/components/charts/*       reliability diagram, latency strip
-src/lib/jev/*                 provider switch + TypeSafe types
-src/lib/sim/pseudoJev.ts      simulator used by the blog
-src/lib/data/*                use cases, demo reviews, labelled lab set
-bert-service/                 FastAPI BERT service
-```
+**Or Render (paid).** BERT-base needs ~1 GB RAM, and Render's Free/Starter plans (512 MB) run out of memory. Dashboard → **New → Blueprint**
+→ pick this repo. `render.yaml` creates `moodify-bert` on the Standard plan (2 GB). Use `https://moodify-bert.onrender.com` as `BERT_SERVICE_URL`.
 
-Facts are current as of 24 Sept 2026. Sources are listed in the site footer.
+### 2. App → Vercel project #2
+1. vercel.com → **Add New → Project** → import the GitHub repo.
+2. **Root Directory: `app`** (Edit → select `app`). Framework preset: Next.js (auto).
+3. Environment variables: `AI_GATEWAY_API_KEY`, `BERT_SERVICE_URL` (from step 1), `LAB_RATE_LIMIT_PER_MIN=60`.
+   Leave `NEXT_PUBLIC_BLOG_URL` for step 4.
+4. **Deploy**. Open `/compare`. The status bar should show *JEV · Vercel AI Gateway* and *BERT · online*.
+
+### 3. Blog → Vercel project #1
+1. **Add New → Project** → import the **same** repo again.
+2. **Root Directory: `blog`**.
+3. Environment variable: `NEXT_PUBLIC_APP_URL=https://<your-app>.vercel.app`.
+4. **Deploy**.
+
+### 4. Close the loop
+In the **app** project → Settings → Environment Variables → add `NEXT_PUBLIC_BLOG_URL=https://<your-blog>.vercel.app` →
+**Redeploy**. `NEXT_PUBLIC_*` values are baked in at build time, so a redeploy is required whenever you change them.
+
+### Keeping deploys independent
+Both Vercel projects watch the same repo. To stop a blog-only change from rebuilding the app (and vice versa), set
+**Settings → Git → Ignored Build Step** to `git diff --quiet HEAD^ HEAD -- .` in each project. It skips the build when
+nothing in that folder changed.
+
+## JEV providers
+
+`app/src/lib/jev/provider.ts` sends TypeSafe's native `/v1/systemone` request to whichever provider is configured:
+
+| Provider | Key | Endpoint |
+|---|---|---|
+| TypeSafe direct | `TYPESAFE_API_KEY` | `https://api.typesafe.ai/v1/systemone` |
+| Vercel AI Gateway | `AI_GATEWAY_API_KEY` | `https://ai-gateway.vercel.sh/typesafe/v1/systemone` |
+| Mock | none | local imitation, flagged in the UI |
+
+`JEV_PROVIDER=auto` picks TypeSafe, then Vercel, then mock. The AI Gateway returns `customer_verification_required` until a
+card is on the Vercel account. OpenRouter doesn't host JEV, since it only serves chat models.

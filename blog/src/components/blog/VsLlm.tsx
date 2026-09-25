@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Card, Reveal, Section, cn } from "@/components/ui";
+import { COMPARE_URL } from "@/lib/links";
 import { SpeedRace } from "./SpeedRace";
 import { CostCalculator } from "./CostCalculator";
 import { NoHallucination } from "./NoHallucination";
@@ -59,7 +60,7 @@ export function VsLlm() {
               <h3 className="text-lg font-semibold">Side by side: JEV, LLM and a fine-tuned BERT</h3>
               <p className="mt-1 text-sm text-ink-2">
                 BERT is included because it&apos;s what you&apos;d have used for classification before (and it&apos;s what the{" "}
-                <a href="/lab" className="text-jev-soft underline-offset-2 hover:underline">
+                <a href={COMPARE_URL} className="text-jev-soft underline-offset-2 hover:underline">
                   lab
                 </a>{" "}
                 compares against).

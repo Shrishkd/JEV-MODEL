@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+/* Dark-only design tokens. Series colours come from a CVD-validated palette:
+   JEV = blue (slot 1), LLM/BERT = orange (slot 2) — the pair always used together. */
+@theme {
+  --color-bg: #07090d;
+  --color-surface: #0d1117;
+  --color-surface-2: #131923;
+  --color-surface-3: #1a2230;
+  --color-line: #212a38;
+  --color-line-2: #2e3a4c;
+  --color-ink: #e9eef6;
+  --color-ink-2: #a6b1c2;
+  --color-ink-3: #6f7b8e;
+
+  --color-jev: #3987e5;
+  --color-jev-soft: #86b6ef;
+  --color-jev-deep: #184f95;
+  --color-cyan: #22d3ee;
+  --color-llm: #d95926;
+  --color-llm-soft: #ec835a;
+  --color-bert: #d95926;
+
+  --color-good: #0ca30c;
+  --color-warn: #fab219;
+  --color-serious: #ec835a;
+  --color-critical: #d03b3b;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse 3s ease-in-out infinite;
+  --animate-blink: blink 1s step-end infinite;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-dash: dash 1.2s linear infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
+  @keyframes dash {
+    to { stroke-dashoffset: -20; }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-jev) 45%, transparent);
+}
+
+/* Subtle grid + glow backdrop used by hero sections. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--color-line) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--color-line) 55%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, var(--color-jev-soft), var(--color-cyan) 55%, var(--color-jev));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-jev) 25%, transparent), transparent);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Range inputs styled to match the theme. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-surface-3);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-jev);
+  border: 3px solid var(--color-bg);
+  box-shadow: 0 0 0 1px var(--color-jev);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-jev);
+  border: 3px solid var(--color-bg);
+  cursor: pointer;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--color-jev-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-jev-soft);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Grid items default to min-width:auto, so a long <pre> line would stretch the column
+   past the viewport instead of scrolling inside its code block. */
+.grid > * {
+  min-width: 0;
+}

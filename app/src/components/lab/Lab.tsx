@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Logo } from "@/components/blog/Nav";
+import { Logo } from "@/components/Logo";
+import { BLOG_URL } from "@/lib/links";
 import { Pill, Tabs } from "@/components/ui";
 import { CurrencyToggle } from "@/lib/currency";
 import { RaceTab } from "./RaceTab";
@@ -38,9 +38,9 @@ export function Lab() {
     <>
       <header className="sticky top-0 z-40 border-b border-line/70 bg-bg/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
+          <a href={BLOG_URL} className="flex items-center gap-2 font-semibold" title="Back to the JEV explainer">
             <Logo /> <span className="hidden sm:inline">JEV.explained</span>
-          </Link>
+          </a>
           <span className="text-ink-3">/</span>
           <span className="font-medium">BERT vs JEV Lab</span>
           <div className="ml-auto">

@@ -1,0 +1,15 @@
+# Render Blueprint for the BERT service (Dashboard → New → Blueprint → pick this repo).
+# The blog and app deploy on Vercel, not here.
+services:
+  - type: web
+    name: moodify-bert
+    runtime: docker
+    dockerContext: ./bert-service
+    dockerfilePath: ./bert-service/Dockerfile
+    # BERT-base needs ~1 GB RAM. Free/Starter (512 MB) run out of memory, so use Standard (2 GB) or above.
+    plan: standard
+    region: singapore
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - bert-service/**

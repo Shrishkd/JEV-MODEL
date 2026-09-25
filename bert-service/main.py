@@ -108,6 +108,11 @@ def _predict(texts: list[str]):
     return results, timings
 
 
+@app.get("/")
+def root():
+    return {"service": "Moodify BERT", "endpoints": ["/health", "/predict", "/predict/batch", "/docs"]}
+
+
 @app.get("/health")
 def health():
     return {

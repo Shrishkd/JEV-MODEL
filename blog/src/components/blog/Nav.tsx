@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CurrencyToggle } from "@/lib/currency";
 import { cn } from "@/components/ui";
+import { COMPARE_URL } from "@/lib/links";
 
 const LINKS = [
   ["what", "What"],
@@ -60,12 +61,12 @@ export function Nav() {
         </div>
         <div className="ml-auto flex items-center gap-2 xl:ml-0">
           <CurrencyToggle />
-          <Link
-            href="/lab"
+          <a
+            href={COMPARE_URL}
             className="hidden whitespace-nowrap rounded-lg border border-jev/50 bg-jev/10 px-3 py-1.5 text-xs font-medium text-jev-soft hover:bg-jev/20 sm:inline-block"
           >
             BERT vs JEV Lab →
-          </Link>
+          </a>
           <button
             className="rounded-md p-2 text-ink-2 xl:hidden"
             aria-label="Toggle menu"
@@ -85,9 +86,9 @@ export function Nav() {
               {label}
             </a>
           ))}
-          <Link href="/lab" className="col-span-2 rounded-md px-2 py-1.5 text-sm text-jev-soft">
+          <a href={COMPARE_URL} className="col-span-2 rounded-md px-2 py-1.5 text-sm text-jev-soft">
             BERT vs JEV Lab →
-          </Link>
+          </a>
         </div>
       )}
     </header>
