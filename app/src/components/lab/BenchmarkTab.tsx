@@ -6,7 +6,7 @@ import { Reliability } from "@/components/charts/Reliability";
 import { Button, Card, Pill, Stat, cn } from "@/components/ui";
 import { useCurrency } from "@/lib/currency";
 import { LAB_SAMPLES } from "@/lib/data/labSamples";
-import { LabError, callBert, callJev, csvToItems, labelIndex, pool, type LabItem } from "@/lib/lab/client";
+import { LabError, callBert, callJev, csvToItems, labelIndex, newRunId, pool, type LabItem } from "@/lib/lab/client";
 import { LABELS, LABEL_DISPLAY, starsToLabel, type Label, type SentimentResult } from "@/lib/lab/shared";
 import { brierScore, ece, mean, percentile, reliabilityBins } from "@/lib/stats";
 import { jevHint, type Health } from "./Lab";
@@ -30,6 +30,7 @@ export function BenchmarkTab({ health }: { health: Health | null }) {
   const [firstError, setFirstError] = useState<{ msg: string; code?: string } | null>(null);
   const ctrl = useRef<AbortController | null>(null);
   const { fmt } = useCurrency();
+  const jevRowCap = health?.quota && !health.quota.unlimited ? health.quota.maxCallsPerTry : Infinity;
 
   const onFile = async (f: File) => {
     try {
@@ -53,14 +54,16 @@ export function BenchmarkTab({ health }: { health: Health | null }) {
     const init: Row[] = items.map((it) => ({ ...it, bert: {}, jev: {} }));
     setRows(init);
     let done = 0;
-    let jevFatal = false; // e.g. missing key / card required: don't hammer the provider for every row
+    let jevFatal = false; // e.g. missing key / card required / quota: don't hammer the provider for every row
+    const runId = newRunId(); // the whole benchmark run counts as ONE try
+    const jevCap = jevRowCap;
     await pool(
       items,
       concurrency,
       async (it, i) => {
         const [b, j] = await Promise.allSettled([
           useBert ? callBert(it.text, c.signal) : Promise.reject(new LabError("skipped", 0)),
-          useJev && !jevFatal ? callJev(it.text, c.signal) : Promise.reject(new LabError("skipped", 0)),
+          useJev && !jevFatal && i < jevCap ? callJev(it.text, runId, c.signal) : Promise.reject(new LabError("skipped", 0)),
         ]);
         const row: Row = { ...it, bert: {}, jev: {} };
         if (b.status === "fulfilled") row.bert = { res: b.value.data, ms: b.value.client_ms };
@@ -76,7 +79,7 @@ export function BenchmarkTab({ health }: { health: Health | null }) {
           row.jev = { error: (j.reason as Error).message };
           const r = j.reason as LabError;
           if (useJev && r.status !== 0) setFirstError((e) => e ?? { msg: r.message, code: r.code });
-          if ([400, 401, 402, 403, 500].includes(r.status)) jevFatal = true;
+          if ([400, 401, 402, 403, 429, 500].includes(r.status)) jevFatal = true;
         }
         setRows((rs) => rs.map((x, k) => (k === i ? row : x)));
         setProgress(++done);
@@ -209,6 +212,11 @@ export function BenchmarkTab({ health }: { health: Health | null }) {
           <div className="mt-4 h-1 overflow-hidden rounded-full bg-surface-3">
             <div className="h-full bg-jev transition-all" style={{ width: `${(progress / items.length) * 100}%` }} />
           </div>
+        )}
+        {useJev && items.length > jevRowCap && (
+          <p className="mt-3 text-xs text-warn">
+            One JEV try covers {jevRowCap} reviews, so JEV runs on the first {jevRowCap}. BERT runs on all {items.length}.
+          </p>
         )}
         {health?.jev.id === "mock" && useJev && (
           <p className="mt-3 text-xs text-warn">JEV is in MOCK mode. Its numbers are placeholders until you add a key.</p>

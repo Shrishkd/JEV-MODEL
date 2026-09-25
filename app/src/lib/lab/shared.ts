@@ -33,7 +33,8 @@ export type BertSentimentResponse = SentimentResult & {
   device: string;
   /** Next server → BERT service → Next server */
   upstream_ms: number;
-  timings: { tokenize_ms: number; inference_ms: number; total_ms: number };
+  /** Only the local bert-service reports these; the hosted HF API doesn't. */
+  timings: { tokenize_ms: number; inference_ms: number; total_ms: number } | null;
 };
 
 export type AspectResult = { name: string; mentioned: number; score: number | null; confidence: number | null };

@@ -5,6 +5,7 @@ import { Logo } from "@/components/Logo";
 import { BLOG_URL } from "@/lib/links";
 import { Pill, Tabs } from "@/components/ui";
 import { CurrencyToggle } from "@/lib/currency";
+import { QUOTA_EVENT } from "@/lib/lab/client";
 import { RaceTab } from "./RaceTab";
 import { BenchmarkTab } from "./BenchmarkTab";
 import { AspectsTab } from "./AspectsTab";
@@ -12,7 +13,8 @@ import { SetupTab } from "./SetupTab";
 
 export type Health = {
   jev: { id: "typesafe" | "vercel" | "mock"; model: string; configured: boolean };
-  bert: { ok: boolean; model?: string; device?: string; load_seconds?: number; error?: string };
+  bert: { ok: boolean; mode?: "service" | "hf" | "none"; model?: string; device?: string; load_seconds?: number; error?: string };
+  quota: { unlimited: true } | { unlimited: false; limit: number; remaining: number; maxCallsPerTry: number } | null;
 };
 
 type Tab = "race" | "bench" | "aspects" | "setup";
@@ -32,6 +34,11 @@ export function Lab() {
     fetch("/api/health", { cache: "no-store" })
       .then((r) => r.json())
       .then(setHealth, () => setHealth(null));
+    // Keep the "tries left" pill in sync with every JEV response.
+    const onQuota = (e: Event) =>
+      setHealth((h) => (h?.quota && !h.quota.unlimited ? { ...h, quota: { ...h.quota, remaining: (e as CustomEvent<number>).detail } } : h));
+    window.addEventListener(QUOTA_EVENT, onQuota);
+    return () => window.removeEventListener(QUOTA_EVENT, onQuota);
   }, []);
 
   return (
@@ -104,6 +111,11 @@ function StatusBar({ health, onRefresh, onSetup }: { health: Health | null; onRe
           <Pill tone={bert?.ok ? "good" : "critical"}>
             BERT · {bert?.ok ? `online (${bert.device})` : "offline"}
           </Pill>
+          {health.quota && !health.quota.unlimited && (
+            <Pill tone={health.quota.remaining > 0 ? "neutral" : "critical"}>
+              JEV tries left today: {health.quota.remaining}/{health.quota.limit}
+            </Pill>
+          )}
         </>
       )}
       <button onClick={onRefresh} className="ml-auto text-xs text-ink-3 hover:text-ink">
@@ -120,6 +132,9 @@ function StatusBar({ health, onRefresh, onSetup }: { health: Health | null; onRe
 
 /** Friendly explanation for common JEV errors. */
 export function jevHint(message: string, code?: string) {
+  if (code === "quota_exhausted") return "Each visitor gets a few JEV tries per day to keep the demo's API bill tiny. BERT still works without limits.";
+  if (code === "run_cap") return "One try covers a limited number of reviews. Run a smaller CSV or start a new try.";
+  if (code === "global_cap") return "The whole demo hit its daily JEV budget. It resets at midnight UTC.";
   if (code === "customer_verification_required" || /credit card/i.test(message))
     return "Vercel AI Gateway needs a card on file before it serves requests (it also unlocks free credits). Add one at vercel.com → AI Gateway, then retry.";
   if (code === "missing_key") return "No API key configured. Add AI_GATEWAY_API_KEY or TYPESAFE_API_KEY to .env.local and restart `npm run dev`.";

@@ -14,27 +14,36 @@ export class LabError extends Error {
   }
 }
 
-async function post<T>(url: string, body: unknown, signal?: AbortSignal): Promise<Timed<T>> {
+/** One id per user action. The server counts distinct run ids as "tries". */
+export const newRunId = () => crypto.randomUUID();
+
+export const QUOTA_EVENT = "jev-quota";
+
+async function post<T>(url: string, body: unknown, signal?: AbortSignal, runId?: string): Promise<Timed<T>> {
   const t0 = performance.now();
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(runId ? { "x-jev-run": runId } : {}) },
     body: JSON.stringify(body),
     signal,
   });
   const client_ms = Math.round(performance.now() - t0);
+  const remaining = res.headers.get("x-jev-tries-remaining");
+  if (remaining !== null) window.dispatchEvent(new CustomEvent(QUOTA_EVENT, { detail: Number(remaining) }));
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new LabError(data?.error ?? `Request failed (${res.status})`, res.status, data?.code);
   return { data: data as T, client_ms };
 }
 
-export const callJev = (text: string, signal?: AbortSignal) => post<JevSentimentResponse>("/api/jev", { text, mode: "sentiment" }, signal);
+export const callJev = (text: string, runId: string, signal?: AbortSignal) =>
+  post<JevSentimentResponse>("/api/jev", { text, mode: "sentiment" }, signal, runId);
 export const callBert = (text: string, signal?: AbortSignal) => post<BertSentimentResponse>("/api/bert", { text }, signal);
-export const callJevAspects = (text: string, aspects: string[], signal?: AbortSignal) =>
+export const callJevAspects = (text: string, aspects: string[], runId: string, signal?: AbortSignal) =>
   post<{ provider: string; model: string; upstream_ms: number; questions: number; aspects: AspectResult[]; usage: { input_tokens: number } }>(
     "/api/jev",
     { text, mode: "aspects", aspects },
     signal,
+    runId,
   );
 
 /** Run `fn` over items with at most `limit` in flight. */

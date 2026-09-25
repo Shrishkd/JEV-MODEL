@@ -39,6 +39,11 @@ JEV_PROVIDER=auto`}
             account. Adding one also unlocks free credits.
           </li>
           <li>• Keys stay on the server. The browser only talks to /api/jev.</li>
+          <li>
+            • Each visitor gets <code className="font-mono">JEV_TRIES_PER_DAY</code> tries (default 3). One try is one race, aspects run or
+            benchmark run of up to <code className="font-mono">JEV_MAX_CALLS_PER_TRY</code> reviews. There is also a site-wide{" "}
+            <code className="font-mono">JEV_GLOBAL_DAILY_CALLS</code> cap. Set tries to 0 for unlimited local testing.
+          </li>
         </ul>
       </Card>
 
@@ -48,18 +53,24 @@ JEV_PROVIDER=auto`}
           {health && <Pill tone={health.bert.ok ? "good" : "critical"}>{health.bert.ok ? `online · ${health.bert.device}` : "offline"}</Pill>}
         </div>
         <p className="mt-2 text-sm text-ink-2">
-          A small FastAPI wrapper around Moodify&apos;s model (<code className="font-mono">nlptown/bert-base-multilingual-uncased-sentiment</code>)
-          that also reports tokenize and forward-pass timings.
+          Same model as Moodify (<code className="font-mono">nlptown/bert-base-multilingual-uncased-sentiment</code>), two ways to run it.
+          <b className="text-ink"> Locally</b>, the FastAPI <code className="font-mono">bert-service</code> gives real forward-pass timings.
+          <b className="text-ink"> In production</b>, Hugging Face&apos;s hosted copy runs it with just a token and nothing to host.
+          <code className="font-mono"> BERT_SERVICE_URL</code> wins when both are set.
         </p>
         <CodeBlock
           className="mt-4"
-          lang="terminal"
+          lang="local: terminal + .env.local"
           code={`cd bert-service
 pip install -r requirements.txt
 uvicorn main:app --port 8000
 
-# optional: load the copy already inside Moodify instead of the HF cache
-# set BERT_MODEL_PATH=D:\\PROJECTS\\Moodify-WebApp\\Backend\\model`}
+BERT_SERVICE_URL=http://127.0.0.1:8000`}
+        />
+        <CodeBlock
+          className="mt-3"
+          lang="production: Vercel env (no BERT_SERVICE_URL)"
+          code={`HF_TOKEN=hf_...   # huggingface.co/settings/tokens → "Make calls to Inference Providers"`}
         />
         {health?.bert.ok && (
           <p className="mt-3 text-xs text-ink-3">

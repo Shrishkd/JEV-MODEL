@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, CodeBlock, Pill, cn } from "@/components/ui";
-import { LabError, callBert, callJevAspects } from "@/lib/lab/client";
+import { LabError, callBert, callJevAspects, newRunId } from "@/lib/lab/client";
 import { DEFAULT_ASPECTS, LABEL_DISPLAY, type AspectResult, type BertSentimentResponse } from "@/lib/lab/shared";
 import { jevHint, type Health } from "./Lab";
 import { ms } from "./SentimentCard";
@@ -23,7 +23,7 @@ export function AspectsTab({ health }: { health: Health | null }) {
   const run = async () => {
     setBusy(true);
     setErr(null);
-    const [j, b] = await Promise.allSettled([callJevAspects(text, aspects), callBert(text)]);
+    const [j, b] = await Promise.allSettled([callJevAspects(text, aspects, newRunId()), callBert(text)]);
     if (j.status === "fulfilled") setJev({ aspects: j.value.data.aspects, ms: j.value.client_ms, questions: j.value.data.questions, provider: j.value.data.provider });
     else {
       setJev(null);

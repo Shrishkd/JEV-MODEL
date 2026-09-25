@@ -29,6 +29,7 @@ uvicorn main:app --port 8000
 
 ## Deploy
 
-The YAML header above is the Hugging Face Spaces config. Upload this folder's files (`Dockerfile`, `README.md`, `main.py`,
-`requirements.txt`) to a new **Docker** Space. For Render, see `render.yaml` at the repo root. It needs a plan with at
-least 2 GB RAM, because BERT-base doesn't fit in 512 MB.
+You usually don't need to. In production the app calls Hugging Face's hosted copy of this model (`HF_TOKEN`). This
+service exists for local development, where it gives real forward-pass timings. To self-host anyway, use `render.yaml`
+at the repo root (Render Standard plan: BERT-base needs ~1 GB RAM). The YAML header above lets the folder run as a
+Docker Space on Hugging Face if you have access to Docker Spaces.

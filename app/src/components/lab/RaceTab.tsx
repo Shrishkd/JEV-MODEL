@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Button, Card, Pill } from "@/components/ui";
 import { useCurrency } from "@/lib/currency";
-import { LabError, callBert, callJev, type Timed } from "@/lib/lab/client";
+import { LabError, callBert, callJev, newRunId, type Timed } from "@/lib/lab/client";
 import type { BertSentimentResponse, JevSentimentResponse } from "@/lib/lab/shared";
 import { LABEL_DISPLAY } from "@/lib/lab/shared";
 import { jevHint, type Health } from "./Lab";
@@ -44,7 +44,7 @@ export function RaceTab({ health }: { health: Health | null }) {
       },
       (e: LabError) => setBert({ state: "error", error: e.message, code: e.code }),
     );
-    const j = callJev(text, c.signal).then(
+    const j = callJev(text, newRunId(), c.signal).then(
       (res) => {
         setJev({ state: "done", res });
         rec.jev = res.client_ms;
@@ -115,10 +115,10 @@ export function RaceTab({ health }: { health: Health | null }) {
             bert.res && [
               ["browser round trip", ms(bert.res.client_ms)],
               ["server → BERT", ms(bert.res.data.upstream_ms)],
-              ["forward pass", ms(bert.res.data.timings.inference_ms)],
-              ["tokenize", ms(bert.res.data.timings.tokenize_ms)],
-              ["device", bert.res.data.device],
-              ["cost", "self-hosted"],
+              ["forward pass", bert.res.data.timings ? ms(bert.res.data.timings.inference_ms) : "n/a (hosted)"],
+              ["tokenize", bert.res.data.timings ? ms(bert.res.data.timings.tokenize_ms) : "n/a (hosted)"],
+              ["runs on", bert.res.data.device],
+              ["cost", bert.res.data.timings ? "self-hosted" : "HF credits"],
             ]
           }
         />

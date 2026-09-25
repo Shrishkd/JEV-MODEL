@@ -1,4 +1,5 @@
-import { JevError, systemOne } from "@/lib/jev/provider";
+import { JevError, resolveProvider, systemOne } from "@/lib/jev/provider";
+import { consumeJevCall, quotaHeaders } from "@/lib/quota";
 import type { ChoiceAnswer, NoulAnswer, ScoreAnswer } from "@/lib/jev/types";
 import {
   LABELS,
@@ -23,6 +24,14 @@ export async function POST(req: Request) {
   const text = typeof body.text === "string" ? body.text.trim() : "";
   if (!text) return Response.json({ error: "text is required" }, { status: 400 });
   if (text.length > MAX_TEXT) return Response.json({ error: `text must be ≤ ${MAX_TEXT} characters` }, { status: 400 });
+
+  // Per-visitor tries (real providers only; the mock costs nothing).
+  let headers: Record<string, string> = {};
+  if (resolveProvider().id !== "mock") {
+    const verdict = await consumeJevCall(req, req.headers.get("x-jev-run"));
+    headers = quotaHeaders(verdict.status);
+    if (!verdict.ok) return Response.json({ error: verdict.message, code: verdict.code }, { status: 429, headers });
+  }
 
   try {
     if (body.mode === "aspects") {
@@ -51,7 +60,7 @@ export async function POST(req: Request) {
         cost_usd: res.cost_usd,
         questions: aspects.length * 2,
         aspects: results,
-      });
+      }, { headers });
     }
 
     const res = await systemOne(text, sentimentQuestions(), req.signal);
@@ -70,9 +79,9 @@ export async function POST(req: Request) {
       usage: res.usage,
       cost_usd: res.cost_usd,
     };
-    return Response.json(out);
+    return Response.json(out, { headers });
   } catch (e) {
-    if (e instanceof JevError) return Response.json({ error: e.message, code: e.code }, { status: e.status });
+    if (e instanceof JevError) return Response.json({ error: e.message, code: e.code }, { status: e.status, headers });
     if ((e as Error).name === "AbortError") return Response.json({ error: "aborted" }, { status: 499 });
     return Response.json({ error: (e as Error).message ?? "JEV call failed" }, { status: 502 });
   }
